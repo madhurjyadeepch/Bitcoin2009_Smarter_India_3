@@ -1,0 +1,16 @@
+* {
+    font-family: 'Inter', sans-serif;
+}
+
+#comments {
+    margin: 20px;
+}
+
+.user-info-container-commentBox {
+    display: flex;
+    align-items: center;
+}
+
+.comment {
+    padding: 10px;
+}

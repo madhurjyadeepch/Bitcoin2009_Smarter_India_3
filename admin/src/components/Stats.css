@@ -1,0 +1,29 @@
+.stats-container {
+    background-color: rgb(248, 248, 248);
+    width: 700px;
+    margin: auto;
+    margin-top: 90px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    font-family: 'Inter', sans-serif;
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 4px 4px rgba(0, 0, 0, 0.15);
+}
+
+.pending-issues-container, .resolved-issues-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.pending-issues-container h1, .resolved-issues-container h1 {
+    color: #033c70;
+}
+
+.pending-issues-container p, .resolved-issues-container p {
+    color: rgb(87, 87, 87)
+}
+

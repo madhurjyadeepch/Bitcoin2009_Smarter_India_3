@@ -1,0 +1,24 @@
+{
+  "name": "city-samadhan",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/madhurjyadeepch/city-samadhan#readme",
+  "bugs": {
+    "url": "https://github.com/madhurjyadeepch/city-samadhan/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/madhurjyadeepch/city-samadhan.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start-all": "concurrently \"npm start --prefix ./mobile\" \"npm run dev --prefix ./server\""
+  },
+  "dependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
