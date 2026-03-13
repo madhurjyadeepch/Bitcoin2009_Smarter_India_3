@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import './Dashboard.css';
 
@@ -12,6 +13,7 @@ const URGENCY_COLORS = {
 };
 
 const Dashboard = () => {
+    const navigate = useNavigate();
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
@@ -173,7 +175,7 @@ const Dashboard = () => {
                         const ai = report.aiAnalysis;
                         const urg = ai?.urgency ? URGENCY_COLORS[ai.urgency] : null;
                         return (
-                            <div key={report._id} className="report-card">
+                            <div key={report._id} className="report-card" onClick={() => navigate(`/report/${report._id}`)} style={{ cursor: 'pointer' }}>
                                 {report.image && (
                                     <div className="report-image-wrap">
                                         <img src={`${SERVER_ROOT}/${report.image}`} alt={report.title} className="report-image" />
@@ -229,6 +231,7 @@ const Dashboard = () => {
                                     <select
                                         className={`status-select ${getStatusClass(report.status)}`}
                                         value={report.status}
+                                        onClick={(e) => e.stopPropagation()}
                                         onChange={(e) => handleStatusChange(report._id, e.target.value)}
                                     >
                                         <option value="pending">Pending</option>

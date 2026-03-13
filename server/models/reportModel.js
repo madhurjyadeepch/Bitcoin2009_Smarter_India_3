@@ -35,6 +35,11 @@ const reportSchema = mongoose.Schema({
     enum: ["pending", "in-progress", "resolved"],
     default: "pending",
   },
+  assignedTo: {
+    type: mongoose.Schema.ObjectId,
+    ref: "Worker",
+    default: null,
+  },
   upvotedBy: [{ type: mongoose.Schema.ObjectId, ref: "User" }],
   downvotedBy: [{ type: mongoose.Schema.ObjectId, ref: "User" }],
 

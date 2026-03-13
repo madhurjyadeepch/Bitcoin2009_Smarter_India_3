@@ -68,7 +68,7 @@ exports.getAllReports = catchAsync(async (req, res, next) => {
 // ── GET REPORT BY ID ──
 exports.getReportById = catchAsync(async (req, res, next) => {
   const reportId = req.params.id || req.body.reportId;
-  const report = await Report.findById(reportId).populate("author", "name email trustScore");
+  const report = await Report.findById(reportId).populate("author", "name email trustScore").populate("assignedTo");
   if (!report) return next(new AppError("No report found with that ID", 404));
 
   res.status(200).json({ status: "success", data: { report } });
@@ -219,4 +219,80 @@ exports.getAiInsights = catchAsync(async (req, res, next) => {
 exports.getCities = catchAsync(async (req, res, next) => {
   const cities = await Report.distinct("city");
   res.status(200).json({ status: "success", data: { cities: cities.filter(c => c && c !== 'Unknown') } });
+});
+
+// ── ADMIN UPDATE (edit any report field) ──
+exports.adminUpdate = catchAsync(async (req, res, next) => {
+  const allowed = ['status', 'category', 'title', 'description', 'address', 'city'];
+  const aiAllowed = ['urgency', 'priorityScore', 'department', 'aiSummary', 'verifiedCategory'];
+
+  const update = {};
+  allowed.forEach(f => { if (req.body[f] !== undefined) update[f] = req.body[f]; });
+
+  const aiUpdate = {};
+  aiAllowed.forEach(f => { if (req.body[f] !== undefined) aiUpdate[f] = req.body[f]; });
+
+  if (Object.keys(aiUpdate).length > 0) {
+    Object.keys(aiUpdate).forEach(k => { update[`aiAnalysis.${k}`] = aiUpdate[k]; });
+  }
+
+  // Recalculate trust if status changed to resolved
+  if (req.body.status === 'resolved') {
+    const report = await Report.findById(req.params.id);
+    if (report?.author) {
+      const { recalculateTrust } = require("../services/trustService");
+      recalculateTrust(report.author).catch(() => {});
+    }
+  }
+
+  const report = await Report.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true })
+    .populate("author", "name email trustScore")
+    .populate("assignedTo");
+
+  if (!report) return next(new AppError("No report found", 404));
+  res.status(200).json({ status: "success", data: { report } });
+});
+
+// ── AI AUTO-FILL (suggest title/desc/category from user text) ──
+exports.aiAutofill = catchAsync(async (req, res, next) => {
+  const { text, address } = req.body;
+  if (!text) return next(new AppError("Provide 'text' to analyze", 400));
+
+  const Groq = require("groq-sdk");
+  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+  const completion = await groq.chat.completions.create({
+    messages: [
+      {
+        role: "system",
+        content: `You help citizens quickly file civic issue reports. Given a rough description of a problem, generate:
+1. A concise, professional title (max 10 words)
+2. A detailed description (2-3 sentences, formal tone)
+3. The most appropriate category from: pothole, garbage, streetlight, drainage, vandalism, general
+
+Respond ONLY in valid JSON:
+{"suggestedTitle": "string", "suggestedDescription": "string", "suggestedCategory": "string"}`
+      },
+      {
+        role: "user",
+        content: `Problem: ${text}${address ? `\nLocation: ${address}` : ''}\n\nRespond with JSON only.`
+      }
+    ],
+    model: "llama-3.3-70b-versatile",
+    temperature: 0.4,
+    max_tokens: 200,
+    response_format: { type: "json_object" },
+  });
+
+  const raw = completion.choices[0]?.message?.content;
+  const parsed = JSON.parse(raw);
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      suggestedTitle: parsed.suggestedTitle || "",
+      suggestedDescription: parsed.suggestedDescription || "",
+      suggestedCategory: parsed.suggestedCategory || "general",
+    },
+  });
 });

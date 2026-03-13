@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import './index.css';
 import SignInPage from './pages/SignInPage';
 import Dashboard from './pages/Dashboard';
+import ReportDetail from './pages/ReportDetail';
+import WorkerManagement from './pages/WorkerManagement';
 import { Route, RouterProvider, createBrowserRouter, createRoutesFromElements, Navigate } from 'react-router-dom';
 import RootLayout from './layouts/RootLayout';
 
@@ -19,6 +21,8 @@ function App() {
     createRoutesFromElements(
       <Route path='/' element={<RootLayout isSignedIn={isSignedIn} setIsSignedIn={setIsSignedIn} />}>
         <Route index element={isSignedIn ? <Dashboard /> : <Navigate to="/signin" replace />} />
+        <Route path='report/:id' element={isSignedIn ? <ReportDetail /> : <Navigate to="/signin" replace />} />
+        <Route path='workers' element={isSignedIn ? <WorkerManagement /> : <Navigate to="/signin" replace />} />
         <Route path='signin' element={isSignedIn ? <Navigate to="/" replace /> : <SignInPage setIsSignedIn={setIsSignedIn} />} />
         <Route path='*' element={<Navigate to="/" replace />} />
       </Route>

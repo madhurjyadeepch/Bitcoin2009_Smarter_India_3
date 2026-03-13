@@ -4,6 +4,7 @@ const globalErrorHandler = require("./controllers/errorController");
 const userRouter = require("./routes/userRoutes");
 const reportRouter = require("./routes/reportRoutes");
 const commentRouter = require("./routes/commentRoutes");
+const workerRouter = require("./routes/workerRoutes");
 const path = require("path");
 const cors = require("cors");
 
@@ -16,6 +17,7 @@ app.use("/uploads", express.static("uploads"));
 app.use("/api/v1/reports", reportRouter);
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/comments", commentRouter);
+app.use("/api/v1/workers", workerRouter);
 
 app.use(globalErrorHandler);
 module.exports = app;

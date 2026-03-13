@@ -9,6 +9,7 @@ router.get("/", reportController.getAllReports);
 router.get("/cities", reportController.getCities);
 router.get("/ai-insights", reportController.getAiInsights);
 router.patch("/changeProgress", reportController.changeProgress);
+router.patch("/:id/admin-update", reportController.adminUpdate);
 
 // Protected routes
 router.use(authController.protect);
@@ -21,6 +22,8 @@ router.post(
   reportController.uploadReportFile,
   reportController.createReport
 );
+
+router.post("/ai-autofill", reportController.aiAutofill);
 
 router.post("/getOne", reportController.getReportById);
 router.get("/:id", reportController.getReportById);
