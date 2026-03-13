@@ -8,6 +8,8 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
+import { useCity } from "../../context/CityContext";
+import CityPickerModal from "../../components/CityPickerModal";
 
 const SERVER_ROOT = process.env.EXPO_PUBLIC_API_URL?.replace('/api/v1', '');
 const AVATAR_COLORS = ['#F2CC8F', '#A8D5BA', '#B8B5E0', '#89CFF0', '#F4845F', '#E8D5C4'];
@@ -107,48 +109,51 @@ const CommunityCard = ({ item, currentUserId }) => {
 
 export default function CommunityScreen() {
     const { user } = useAuth();
+    const { city, isDetecting } = useCity();
     const [reports, setReports] = useState([]);
     const [refreshing, setRefreshing] = useState(false);
     const [loading, setLoading] = useState(true);
-    const [cities, setCities] = useState([]);
-    const [selectedCity, setSelectedCity] = useState('');
-    const [showCityModal, setShowCityModal] = useState(false);
+    const [showCityPicker, setShowCityPicker] = useState(false);
 
-    const fetchReports = async (city) => {
+    const fetchReports = async (currentCity) => {
         try {
             const params = {};
-            if (city) params.city = city;
+            if (currentCity && currentCity !== 'All Cities') params.city = currentCity;
             const r = await api.get('/reports/', { params });
             setReports(r.data.data?.reports || []);
         } catch { Alert.alert("Error", "Failed to fetch."); }
         finally { setLoading(false); setRefreshing(false); }
     };
 
-    const fetchCities = async () => {
-        try { const r = await api.get('/reports/cities'); setCities(r.data.data?.cities || []); } catch {}
-    };
-
-    useEffect(() => { fetchReports(selectedCity); fetchCities(); }, []);
-    const onRefresh = useCallback(() => { setRefreshing(true); fetchReports(selectedCity); }, [selectedCity]);
-
-    const selectCity = (city) => {
-        setSelectedCity(city);
-        setShowCityModal(false);
-        setLoading(true);
-        fetchReports(city);
-    };
+    useEffect(() => { 
+        if (!isDetecting) {
+            fetchReports(city); 
+        }
+    }, [city, isDetecting]);
+    
+    const onRefresh = useCallback(() => { 
+        setRefreshing(true); 
+        fetchReports(city); 
+    }, [city]);
 
     return (
         <SafeAreaView style={s.safe} edges={['top']}>
             <StatusBar barStyle="dark-content" />
             <View style={s.header}>
                 <Text style={s.headerTitle}>Community</Text>
-                <TouchableOpacity style={s.cityBtn} onPress={() => setShowCityModal(true)} activeOpacity={0.8}>
-                    <Ionicons name="location" size={16} color="#4F46E5" />
-                    <Text style={s.cityBtnText}>{selectedCity || 'All Cities'}</Text>
-                    <Ionicons name="chevron-down" size={14} color="#4F46E5" />
-                </TouchableOpacity>
             </View>
+
+            {/* City Bar (OLX Style) */}
+            <TouchableOpacity style={s.cityBar} onPress={() => setShowCityPicker(true)} activeOpacity={0.85}>
+                <View style={s.cityBarLeft}>
+                    <Ionicons name="location" size={22} color="#4F46E5" />
+                    <View>
+                        <Text style={s.cityBarLabel}>Filter Location</Text>
+                        <Text style={s.cityBarValue}>{isDetecting ? 'Detecting...' : (city || 'All Cities')}</Text>
+                    </View>
+                </View>
+                <Ionicons name="chevron-down" size={20} color="#1A1A2E" />
+            </TouchableOpacity>
 
             {loading ? (
                 <View style={s.loadWrap}><ActivityIndicator size="large" color="#4F46E5" /></View>
@@ -164,27 +169,7 @@ export default function CommunityScreen() {
                 />
             )}
 
-            {/* City Filter Modal */}
-            <Modal visible={showCityModal} animationType="slide" transparent>
-                <View style={s.modalOverlay}>
-                    <View style={s.modalCard}>
-                        <Text style={s.modalTitle}>Filter by City</Text>
-                        <ScrollView style={s.modalScroll}>
-                            <TouchableOpacity style={[s.modalItem, !selectedCity && s.modalItemActive]} onPress={() => selectCity('')}>
-                                <Text style={[s.modalItemText, !selectedCity && s.modalItemTextActive]}>All Cities</Text>
-                            </TouchableOpacity>
-                            {cities.map(c => (
-                                <TouchableOpacity key={c} style={[s.modalItem, selectedCity === c && s.modalItemActive]} onPress={() => selectCity(c)}>
-                                    <Text style={[s.modalItemText, selectedCity === c && s.modalItemTextActive]}>{c}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                        <TouchableOpacity style={s.modalCloseBtn} onPress={() => setShowCityModal(false)}>
-                            <Text style={s.modalCloseText}>Close</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
+            <CityPickerModal visible={showCityPicker} onClose={() => setShowCityPicker(false)} />
         </SafeAreaView>
     );
 }
@@ -193,8 +178,10 @@ const s = StyleSheet.create({
     safe: { flex: 1, backgroundColor: '#FAF8F5' },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
     headerTitle: { fontFamily: 'Poppins-Bold', fontSize: 22, color: '#1A1A2E' },
-    cityBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EDE9FE', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 },
-    cityBtnText: { fontFamily: 'Poppins-SemiBold', fontSize: 13, color: '#4F46E5' },
+    cityBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF', padding: 16, borderRadius: 20, marginHorizontal: 20, marginBottom: 16, shadowColor: '#1A1A2E', shadowOpacity: 0.04, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+    cityBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    cityBarLabel: { fontFamily: 'Poppins-SemiBold', fontSize: 11, color: '#8E8E93', textTransform: 'uppercase', letterSpacing: 0.5 },
+    cityBarValue: { fontFamily: 'Poppins-Bold', fontSize: 16, color: '#1A1A2E' },
     loadWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     list: { paddingHorizontal: 16, paddingBottom: 100 },
     empty: { alignItems: 'center', marginTop: 80, gap: 12 },
@@ -227,15 +214,4 @@ const s = StyleSheet.create({
     cardActions: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#F5F3F0', gap: 20 },
     actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
     actionText: { fontFamily: 'Poppins-Regular', fontSize: 13, color: '#8E8E93' },
-
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
-    modalCard: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 40, maxHeight: '60%' },
-    modalTitle: { fontFamily: 'Poppins-Bold', fontSize: 20, color: '#1A1A2E', marginBottom: 16 },
-    modalScroll: { marginBottom: 16 },
-    modalItem: { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 12, marginBottom: 4 },
-    modalItemActive: { backgroundColor: '#EDE9FE' },
-    modalItemText: { fontFamily: 'Poppins-Regular', fontSize: 16, color: '#6B6B80' },
-    modalItemTextActive: { fontFamily: 'Poppins-SemiBold', color: '#4F46E5' },
-    modalCloseBtn: { backgroundColor: '#F5F3F0', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
-    modalCloseText: { fontFamily: 'Poppins-SemiBold', fontSize: 15, color: '#6B6B80' },
 });

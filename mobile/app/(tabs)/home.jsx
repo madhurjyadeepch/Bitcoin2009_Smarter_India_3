@@ -3,6 +3,9 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from "../../context/AuthContext";
+import { useCity } from "../../context/CityContext";
+import CityPickerModal from "../../components/CityPickerModal";
+import { useState } from 'react';
 
 const CATEGORIES = [
     { label: 'Pothole', icon: 'warning', bg: '#F2CC8F', fg: '#7A5F00' },
@@ -16,6 +19,9 @@ const CATEGORIES = [
 export default function HomeScreen() {
     const router = useRouter();
     const { user } = useAuth();
+    const { city, isDetecting } = useCity();
+    const [showCityPicker, setShowCityPicker] = useState(false);
+    
     const hour = new Date().getHours();
     const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
@@ -35,6 +41,18 @@ export default function HomeScreen() {
                         </View>
                     </TouchableOpacity>
                 </View>
+
+                {/* City Bar (OLX Style) */}
+                <TouchableOpacity style={s.cityBar} onPress={() => setShowCityPicker(true)} activeOpacity={0.85}>
+                    <View style={s.cityBarLeft}>
+                        <Ionicons name="location" size={22} color="#4F46E5" />
+                        <View>
+                            <Text style={s.cityBarLabel}>Current Location</Text>
+                            <Text style={s.cityBarValue}>{isDetecting ? 'Detecting...' : (city || 'All Cities')}</Text>
+                        </View>
+                    </View>
+                    <Ionicons name="chevron-down" size={20} color="#1A1A2E" />
+                </TouchableOpacity>
 
                 {/* Hero Card */}
                 <TouchableOpacity style={s.heroCard} activeOpacity={0.9} onPress={() => router.push('/report-create')}>
@@ -84,6 +102,8 @@ export default function HomeScreen() {
                     ))}
                 </View>
             </ScrollView>
+
+            <CityPickerModal visible={showCityPicker} onClose={() => setShowCityPicker(false)} />
         </SafeAreaView>
     );
 }
@@ -98,6 +118,11 @@ const s = StyleSheet.create({
     avatarWrap: {},
     avatar: { width: 48, height: 48, borderRadius: 16, backgroundColor: '#4F46E5', justifyContent: 'center', alignItems: 'center' },
     avatarLetter: { fontFamily: 'Poppins-Bold', fontSize: 20, color: '#FFFFFF' },
+
+    cityBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF', padding: 16, borderRadius: 20, marginBottom: 24, shadowColor: '#1A1A2E', shadowOpacity: 0.04, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+    cityBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    cityBarLabel: { fontFamily: 'Poppins-SemiBold', fontSize: 11, color: '#8E8E93', textTransform: 'uppercase', letterSpacing: 0.5 },
+    cityBarValue: { fontFamily: 'Poppins-Bold', fontSize: 16, color: '#1A1A2E' },
 
     heroCard: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, flexDirection: 'row', alignItems: 'center', marginBottom: 28, shadowColor: '#1A1A2E', shadowOpacity: 0.06, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 3 },
     heroLeft: { flex: 1, marginRight: 16 },

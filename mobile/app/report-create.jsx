@@ -28,6 +28,7 @@ export default function ReportCreateScreen() {
     const [category, setCategory] = useState(preCategory || "Pothole");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isFetchingLocation, setIsFetchingLocation] = useState(false);
+    const [isAutofilling, setIsAutofilling] = useState(false);
 
     useEffect(() => { if (preCategory) setCategory(preCategory); }, [preCategory]);
 
@@ -66,6 +67,31 @@ export default function ReportCreateScreen() {
         const fn = useCamera ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
         const result = await fn({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [4, 3], quality: 0.8 });
         if (!result.canceled) setImage(result.assets[0].uri);
+    };
+
+    const handleAiAutofill = async () => {
+        if (!description) {
+            Alert.alert("AI Autofill", "Please write a rough description of the issue first.");
+            return;
+        }
+        setIsAutofilling(true);
+        try {
+            const res = await api.post('/reports/ai-autofill', { text: description, address });
+            const { suggestedTitle, suggestedDescription, suggestedCategory } = res.data.data;
+            if (suggestedTitle) setTitle(suggestedTitle);
+            if (suggestedDescription) setDescription(suggestedDescription);
+            
+            // Match category disregarding case
+            if (suggestedCategory) {
+                const match = CATEGORIES.find(c => c.label.toLowerCase() === suggestedCategory.toLowerCase());
+                if (match) setCategory(match.label);
+                else setCategory("General");
+            }
+        } catch {
+            Alert.alert("Error", "AI Autofill failed to generate details.");
+        } finally {
+            setIsAutofilling(false);
+        }
     };
 
     const handleSubmit = async () => {
@@ -116,6 +142,17 @@ export default function ReportCreateScreen() {
                             </View>
                         )}
                     </TouchableOpacity>
+
+                    {/* AI Autofill Banner */}
+                    <View style={s.aiBanner}>
+                        <View style={{ flex: 1, marginRight: 12 }}>
+                            <Text style={s.aiBannerTitle}>AI Autofill Magic ✨</Text>
+                            <Text style={s.aiBannerDesc}>Write a rough description below, and let AI generate a professional title and select the best category for you.</Text>
+                        </View>
+                        <TouchableOpacity style={s.aiBtn} onPress={handleAiAutofill} disabled={isAutofilling} activeOpacity={0.8}>
+                            {isAutofilling ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.aiBtnText}>Auto-fill</Text>}
+                        </TouchableOpacity>
+                    </View>
 
                     {/* Fields */}
                     <Text style={s.label}>Title</Text>
@@ -178,6 +215,12 @@ const s = StyleSheet.create({
     photoIconWrap: { width: 64, height: 64, borderRadius: 20, backgroundColor: '#EDE9FE', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
     photoText: { fontFamily: 'Poppins-SemiBold', fontSize: 15, color: '#1A1A2E' },
     photoHint: { fontFamily: 'Poppins-Regular', fontSize: 13, color: '#8E8E93', marginTop: 4 },
+
+    aiBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EDE9FE', padding: 16, borderRadius: 16, marginBottom: 24 },
+    aiBannerTitle: { fontFamily: 'Poppins-Bold', fontSize: 14, color: '#4F46E5', marginBottom: 4 },
+    aiBannerDesc: { fontFamily: 'Poppins-Regular', fontSize: 12, color: '#6B6B80', lineHeight: 18 },
+    aiBtn: { backgroundColor: '#4F46E5', paddingHorizontal: 16, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+    aiBtnText: { fontFamily: 'Poppins-SemiBold', fontSize: 13, color: '#FFFFFF' },
 
     label: { fontFamily: 'Poppins-SemiBold', fontSize: 14, color: '#1A1A2E', marginBottom: 8 },
     inputWrap: { backgroundColor: '#FFFFFF', borderRadius: 14, paddingHorizontal: 14, height: 52, justifyContent: 'center', marginBottom: 18, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
