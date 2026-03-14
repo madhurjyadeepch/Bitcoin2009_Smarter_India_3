@@ -5,6 +5,7 @@ const router = express.Router();
 
 router.get("/", workerController.getAllWorkers);
 router.post("/", workerController.createWorker);
+router.get("/telegram-updates", workerController.getTelegramUpdates);
 router.get("/department/:department", workerController.getWorkersByDepartment);
 router.get("/:id", workerController.getWorkerById);
 router.patch("/:id", workerController.updateWorker);

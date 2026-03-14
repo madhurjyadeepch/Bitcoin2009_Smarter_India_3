@@ -32,9 +32,24 @@ const reportSchema = mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ["pending", "in-progress", "resolved"],
-    default: "pending",
+    enum: [
+      "received",
+      "under-review",
+      "assigned",
+      "work-in-progress",
+      "verification",
+      "resolved",
+      "closed",
+    ],
+    default: "received",
   },
+  statusHistory: [
+    {
+      status: String,
+      timestamp: { type: Date, default: Date.now },
+      note: { type: String, default: "" },
+    },
+  ],
   assignedTo: {
     type: mongoose.Schema.ObjectId,
     ref: "Worker",
@@ -43,7 +58,7 @@ const reportSchema = mongoose.Schema({
   upvotedBy: [{ type: mongoose.Schema.ObjectId, ref: "User" }],
   downvotedBy: [{ type: mongoose.Schema.ObjectId, ref: "User" }],
 
-  // AI Analysis Fields
+  // Analysis fields
   aiAnalysis: {
     verifiedCategory: { type: String, default: null },
     urgency: {

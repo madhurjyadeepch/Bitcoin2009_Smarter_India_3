@@ -19,6 +19,7 @@ router.patch(
   userController.updateMe
 );
 router.delete("/deleteMe", authController.protect, userController.deleteMe);
+router.post("/push-token", userController.savePushToken);
 
 router.use(authController.restrictTo("admin"));
 

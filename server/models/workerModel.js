@@ -9,9 +9,13 @@ const workerSchema = mongoose.Schema({
     type: String,
     required: [true, "A worker must have a phone number"],
   },
+  telegramChatId: {
+    type: String,
+    default: "",
+  },
   whatsappNumber: {
     type: String,
-    required: [true, "A worker must have a WhatsApp number"],
+    default: "",
   },
   department: {
     type: String,

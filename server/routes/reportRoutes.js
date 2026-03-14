@@ -4,31 +4,26 @@ const authController = require("../controllers/authControllers");
 
 const router = express.Router();
 
-// Public routes
+// Public routes (no auth needed)
 router.get("/", reportController.getAllReports);
 router.get("/cities", reportController.getCities);
 router.get("/ai-insights", reportController.getAiInsights);
 router.patch("/changeProgress", reportController.changeProgress);
 router.patch("/:id/admin-update", reportController.adminUpdate);
 
-// Protected routes
-router.use(authController.protect);
+// Protected routes that MUST be above /:id to avoid being caught by the wildcard
+router.get("/my-reports", authController.protect, reportController.myReports);
+router.get("/user-stats", authController.protect, reportController.getUserStats);
+router.post("/create", authController.protect, reportController.uploadReportFile, reportController.createReport);
+router.post("/ai-autofill", authController.protect, reportController.aiAutofill);
 
-router.get("/my-reports", reportController.myReports);
-router.get("/user-stats", reportController.getUserStats);
-
-router.post(
-  "/create",
-  reportController.uploadReportFile,
-  reportController.createReport
-);
-
-router.post("/ai-autofill", reportController.aiAutofill);
-
-router.post("/getOne", reportController.getReportById);
+// This must be AFTER all named routes to avoid catching /my-reports, /cities, etc.
 router.get("/:id", reportController.getReportById);
-router.delete("/:id", reportController.deleteReport);
-router.patch("/:id/upvote", reportController.upvoteReport);
-router.patch("/:id/downvote", reportController.downvoteReport);
+
+// More protected routes
+router.post("/getOne", authController.protect, reportController.getReportById);
+router.delete("/:id", authController.protect, reportController.deleteReport);
+router.patch("/:id/upvote", authController.protect, reportController.upvoteReport);
+router.patch("/:id/downvote", authController.protect, reportController.downvoteReport);
 
 module.exports = router;

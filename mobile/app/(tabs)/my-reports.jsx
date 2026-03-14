@@ -11,9 +11,16 @@ import api from "../../utils/api";
 const SERVER_ROOT = process.env.EXPO_PUBLIC_API_URL?.replace('/api/v1', '');
 
 const STATUS_CONFIG = {
-    'pending': { bg: '#FFF0F0', color: '#E53935', dot: '#E53935', label: 'Pending' },
-    'in-progress': { bg: '#FFF8E5', color: '#E6A817', dot: '#E6A817', label: 'In Progress' },
+    'received': { bg: '#EDE9FE', color: '#4F46E5', dot: '#4F46E5', label: 'Received' },
+    'under-review': { bg: '#FFF8E5', color: '#E6A817', dot: '#E6A817', label: 'Under Review' },
+    'assigned': { bg: '#E0F2FE', color: '#0284C7', dot: '#0284C7', label: 'Assigned' },
+    'work-in-progress': { bg: '#FFF3E0', color: '#E65100', dot: '#E65100', label: 'In Progress' },
+    'verification': { bg: '#F3E8FF', color: '#7C3AED', dot: '#7C3AED', label: 'Verification' },
     'resolved': { bg: '#E8F5E9', color: '#2E7D32', dot: '#2E7D32', label: 'Resolved' },
+    'closed': { bg: '#F5F3F0', color: '#8E8E93', dot: '#8E8E93', label: 'Closed' },
+    // Backward compat for old DB records
+    'pending': { bg: '#EDE9FE', color: '#4F46E5', dot: '#4F46E5', label: 'Received' },
+    'in-progress': { bg: '#FFF3E0', color: '#E65100', dot: '#E65100', label: 'In Progress' },
 };
 
 const ReportCard = ({ report, onDelete, onOpenMap }) => {

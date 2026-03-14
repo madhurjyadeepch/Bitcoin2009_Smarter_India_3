@@ -2,6 +2,25 @@ const catchAsync = require("../utils/catchAsync");
 const Worker = require("../models/workerModel");
 const Report = require("../models/reportModel");
 const AppError = require("../utils/appError");
+const { sendAssignmentNotification, getUpdates } = require("../services/telegramService");
+
+// Build WhatsApp deep link message
+const buildWhatsAppLink = (worker, report) => {
+  const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(report.address || "")}`;
+  const msg =
+    `*CIVIC ISSUE ASSIGNED*\n\n` +
+    `Title: ${report.title}\n` +
+    `Category: ${report.category}\n` +
+    `Urgency: ${report.aiAnalysis?.urgency || "N/A"}\n` +
+    `Priority: ${report.aiAnalysis?.priorityScore || "N/A"}/100\n` +
+    `Location: ${report.address}\n` +
+    `Maps: ${mapsLink}\n\n` +
+    `Description: ${report.description}\n` +
+    `Reported By: ${report.author?.name || "Anonymous"}`;
+
+  const phone = worker.whatsappNumber.replace(/[^0-9]/g, "");
+  return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+};
 
 // ── CRUD ──
 exports.createWorker = catchAsync(async (req, res, next) => {
@@ -35,7 +54,7 @@ exports.deleteWorker = catchAsync(async (req, res, next) => {
   res.status(204).json({ status: "success", data: null });
 });
 
-// ── GET WORKERS BY DEPARTMENT (with assignment counts) ──
+// ── GET WORKERS BY DEPARTMENT ──
 exports.getWorkersByDepartment = catchAsync(async (req, res, next) => {
   const dept = decodeURIComponent(req.params.department);
   const workers = await Worker.find({ department: dept, isActive: true })
@@ -43,7 +62,47 @@ exports.getWorkersByDepartment = catchAsync(async (req, res, next) => {
   res.status(200).json({ status: "success", data: { workers } });
 });
 
-// ── ASSIGN REPORT TO WORKER ──
+// ── TELEGRAM: Get recent bot messages to find chat IDs ──
+exports.getTelegramUpdates = catchAsync(async (req, res, next) => {
+  const result = await getUpdates();
+
+  if (!result.ok) {
+    return res.status(200).json({
+      status: "success",
+      data: {
+        configured: false,
+        message: result.description || "Bot token not configured or invalid",
+        chatIds: [],
+      },
+    });
+  }
+
+  // Extract unique chat IDs from messages
+  const chatMap = {};
+  (result.result || []).forEach(update => {
+    const msg = update.message || update.edited_message;
+    if (msg?.chat) {
+      const chat = msg.chat;
+      chatMap[chat.id] = {
+        chatId: String(chat.id),
+        firstName: chat.first_name || '',
+        lastName: chat.last_name || '',
+        username: chat.username || '',
+        lastMessage: msg.text || '',
+      };
+    }
+  });
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      configured: true,
+      chatIds: Object.values(chatMap),
+    },
+  });
+});
+
+// ── ASSIGN REPORT TO WORKER (Telegram + WhatsApp) ──
 exports.assignReport = catchAsync(async (req, res, next) => {
   const { workerId, reportId } = req.params;
 
@@ -54,36 +113,45 @@ exports.assignReport = catchAsync(async (req, res, next) => {
   if (!report) return next(new AppError("Report not found", 404));
 
   // Add report to worker's assignments (avoid duplicates)
-  if (!worker.assignedReports.includes(reportId)) {
+  if (!worker.assignedReports.some(r => r.toString() === reportId)) {
     worker.assignedReports.push(reportId);
     await worker.save();
   }
 
-  // Update report with assigned worker info
+  // Update report
   report.assignedTo = workerId;
-  if (report.status === 'pending') report.status = 'in-progress';
+  if (['received', 'under-review', 'pending'].includes(report.status)) {
+    report.status = 'assigned';
+    report.statusHistory.push({ status: 'assigned', timestamp: new Date(), note: `Assigned to ${worker.name}` });
+  }
   await report.save();
 
-  // Generate WhatsApp deep link
-  const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(report.address || '')}`;
-  const message = `*CIVIC ISSUE ASSIGNED*\n\n` +
-    `*Title:* ${report.title}\n` +
-    `*Category:* ${report.category}\n` +
-    `*Urgency:* ${report.aiAnalysis?.urgency || 'N/A'}\n` +
-    `*Priority:* ${report.aiAnalysis?.priorityScore || 'N/A'}/100\n` +
-    `*Description:* ${report.description}\n` +
-    `*Location:* ${report.address}\n` +
-    `*Maps:* ${mapsLink}\n` +
-    `*Reported By:* ${report.author?.name || 'Anonymous'}\n\n` +
-    `Please resolve this issue and update status.`;
+  // Send Telegram notification
+  let telegramSent = false;
+  let telegramError = null;
+  if (worker.telegramChatId) {
+    try {
+      const tgResult = await sendAssignmentNotification(worker, report);
+      telegramSent = tgResult.ok === true;
+      if (!telegramSent) telegramError = tgResult.description || 'Unknown error';
+    } catch (err) {
+      telegramError = err.message;
+    }
+  }
 
-  const whatsappLink = `https://wa.me/${worker.whatsappNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(message)}`;
+  // Build WhatsApp link
+  let whatsappLink = null;
+  if (worker.whatsappNumber) {
+    whatsappLink = buildWhatsAppLink(worker, report);
+  }
 
   res.status(200).json({
     status: "success",
     data: {
       worker,
       report,
+      telegramSent,
+      telegramError,
       whatsappLink,
     },
   });

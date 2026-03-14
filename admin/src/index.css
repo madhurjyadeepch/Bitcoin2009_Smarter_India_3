@@ -2,6 +2,7 @@
 
 :root {
     --primary: #4F46E5;
+    --primary-dark: #4338CA;
     --primary-light: #EDE9FE;
     --bg: #FAF8F5;
     --card: #FFFFFF;
@@ -14,6 +15,7 @@
     --success: #2E7D32; --success-bg: #E8F5E9;
     --warning: #E6A817; --warning-bg: #FFF8E5;
     --danger: #E53935; --danger-bg: #FFF0F0;
+    --info: #0284C7; --info-bg: #E0F2FE;
     --yellow: #F2CC8F; --green: #A8D5BA; --purple: #B8B5E0; --blue: #89CFF0; --coral: #F4845F;
     --radius: 20px;
     --shadow: 0 6px 20px rgba(26,26,46,0.06);

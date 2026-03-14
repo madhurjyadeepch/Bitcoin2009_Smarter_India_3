@@ -94,6 +94,13 @@ exports.createUser = (req, res) => {
   });
 };
 
+exports.savePushToken = catchAsync(async (req, res, next) => {
+  const { pushToken } = req.body;
+  if (!pushToken) return next(new appError("Provide pushToken", 400));
+  await User.findByIdAndUpdate(req.user._id, { pushToken });
+  res.status(200).json({ status: "success" });
+});
+
 exports.getAllUsers = factory.getAll(User);
 exports.getUser = factory.getOne(User);
 exports.updateUser = factory.updateOne(User);

@@ -4,14 +4,13 @@ import { Stack } from "expo-router";
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
-import { AuthProvider } from "../context/AuthContext"; // <-- For Authentication
+import { AuthProvider } from "../context/AuthContext";
 import { CityProvider } from "../context/CityContext";
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  // --- FONT LOADING LOGIC ---
   const [fontsLoaded] = useFonts({
     'Poppins-Regular': Poppins_400Regular,
     'Poppins-SemiBold': Poppins_600SemiBold,
@@ -20,17 +19,14 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (fontsLoaded) {
-      // Hide the splash screen after the fonts have loaded
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded]);
 
-  // Return null while fonts are loading to prevent rendering
   if (!fontsLoaded) {
     return null;
   }
 
-  // --- AUTH AND NAVIGATION SETUP ---
   return (
     <CityProvider>
       <AuthProvider>

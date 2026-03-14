@@ -52,9 +52,9 @@ const Dashboard = () => {
 
     const stats = {
         total: reports.length,
-        pending: reports.filter(r => r.status === 'pending').length,
-        inProgress: reports.filter(r => r.status === 'in-progress').length,
-        resolved: reports.filter(r => r.status === 'resolved').length,
+        received: reports.filter(r => r.status === 'received').length,
+        inProgress: reports.filter(r => ['under-review', 'assigned', 'work-in-progress', 'verification'].includes(r.status)).length,
+        resolved: reports.filter(r => ['resolved', 'closed'].includes(r.status)).length,
     };
 
     const filteredReports = reports
@@ -65,15 +65,15 @@ const Dashboard = () => {
             return r.title?.toLowerCase().includes(term) || r.category?.toLowerCase().includes(term) || r.address?.toLowerCase().includes(term) || r.aiAnalysis?.department?.toLowerCase().includes(term);
         });
 
-    const getStatusClass = (s) => s === 'pending' ? 'status-pending' : s === 'in-progress' ? 'status-progress' : 'status-resolved';
+    const getStatusClass = (s) => `status-${s}`;
     const formatDate = (d) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
     return (
         <div className="dashboard">
             <div className="dash-header">
                 <div>
-                    <h1 className="dash-title">AI Operations Dashboard</h1>
-                    <p className="dash-subtitle">AI-powered civic issue management and resolution</p>
+                    <h1 className="dash-title">Operations Dashboard</h1>
+                    <p className="dash-subtitle">Civic issue management and resolution center</p>
                 </div>
             </div>
 
@@ -123,7 +123,7 @@ const Dashboard = () => {
             <div className="stats-grid">
                 {[
                     { label: 'Total Reports', num: stats.total, cls: 'total', f: 'all' },
-                    { label: 'Pending', num: stats.pending, cls: 'pending', f: 'pending' },
+                    { label: 'Received', num: stats.received, cls: 'pending', f: 'received' },
                     { label: 'In Progress', num: stats.inProgress, cls: 'progress', f: 'in-progress' },
                     { label: 'Resolved', num: stats.resolved, cls: 'resolved', f: 'resolved' },
                 ].map(s => (
@@ -142,9 +142,9 @@ const Dashboard = () => {
             {/* Toolbar */}
             <div className="toolbar">
                 <div className="filter-tabs">
-                    {['all', 'pending', 'in-progress', 'resolved'].map(f => (
+                    {['all', 'received', 'under-review', 'assigned', 'work-in-progress', 'verification', 'resolved', 'closed'].map(f => (
                         <button key={f} className={`filter-tab ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
-                            {f === 'all' ? 'All' : f === 'in-progress' ? 'In Progress' : f.charAt(0).toUpperCase() + f.slice(1)}
+                            {f === 'all' ? 'All' : f.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                         </button>
                     ))}
                 </div>
@@ -234,9 +234,13 @@ const Dashboard = () => {
                                         onClick={(e) => e.stopPropagation()}
                                         onChange={(e) => handleStatusChange(report._id, e.target.value)}
                                     >
-                                        <option value="pending">Pending</option>
-                                        <option value="in-progress">In Progress</option>
+                                        <option value="received">Received</option>
+                                        <option value="under-review">Under Review</option>
+                                        <option value="assigned">Assigned</option>
+                                        <option value="work-in-progress">Work in Progress</option>
+                                        <option value="verification">Verification</option>
                                         <option value="resolved">Resolved</option>
+                                        <option value="closed">Closed</option>
                                     </select>
                                 </div>
                             </div>

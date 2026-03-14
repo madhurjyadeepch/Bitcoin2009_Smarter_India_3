@@ -65,30 +65,29 @@ export default function ReportCreateScreen() {
 
     const pickImage = async (useCamera) => {
         const fn = useCamera ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
-        const result = await fn({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [4, 3], quality: 0.8 });
+        const result = await fn({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.8 });
         if (!result.canceled) setImage(result.assets[0].uri);
     };
 
-    const handleAiAutofill = async () => {
-        if (!description) {
-            Alert.alert("AI Autofill", "Please write a rough description of the issue first.");
+    const handleSmartFill = async () => {
+        if (!description && !image) {
+            Alert.alert("Smart Fill", "Please add a photo or write a brief description first.");
             return;
         }
         setIsAutofilling(true);
         try {
-            const res = await api.post('/reports/ai-autofill', { text: description, address });
+            const textHint = description || `A civic issue at ${address || 'an unknown location'}`;
+            const res = await api.post('/reports/ai-autofill', { text: textHint, address });
             const { suggestedTitle, suggestedDescription, suggestedCategory } = res.data.data;
+
             if (suggestedTitle) setTitle(suggestedTitle);
             if (suggestedDescription) setDescription(suggestedDescription);
-            
-            // Match category disregarding case
             if (suggestedCategory) {
                 const match = CATEGORIES.find(c => c.label.toLowerCase() === suggestedCategory.toLowerCase());
-                if (match) setCategory(match.label);
-                else setCategory("General");
+                setCategory(match ? match.label : "General");
             }
         } catch {
-            Alert.alert("Error", "AI Autofill failed to generate details.");
+            Alert.alert("Error", "Could not generate details. Try again.");
         } finally {
             setIsAutofilling(false);
         }
@@ -135,24 +134,13 @@ export default function ReportCreateScreen() {
                         ) : (
                             <View style={s.photoPlaceholder}>
                                 <View style={s.photoIconWrap}>
-                                    <Ionicons name="camera" size={32} color="#4F46E5" />
+                                    <Ionicons name="camera" size={32} color="#1A1A2E" />
                                 </View>
                                 <Text style={s.photoText}>Tap to add a photo</Text>
                                 <Text style={s.photoHint}>Camera or Gallery</Text>
                             </View>
                         )}
                     </TouchableOpacity>
-
-                    {/* AI Autofill Banner */}
-                    <View style={s.aiBanner}>
-                        <View style={{ flex: 1, marginRight: 12 }}>
-                            <Text style={s.aiBannerTitle}>AI Autofill Magic ✨</Text>
-                            <Text style={s.aiBannerDesc}>Write a rough description below, and let AI generate a professional title and select the best category for you.</Text>
-                        </View>
-                        <TouchableOpacity style={s.aiBtn} onPress={handleAiAutofill} disabled={isAutofilling} activeOpacity={0.8}>
-                            {isAutofilling ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.aiBtnText}>Auto-fill</Text>}
-                        </TouchableOpacity>
-                    </View>
 
                     {/* Fields */}
                     <Text style={s.label}>Title</Text>
@@ -162,8 +150,20 @@ export default function ReportCreateScreen() {
 
                     <Text style={s.label}>Description</Text>
                     <View style={[s.inputWrap, { height: 100, alignItems: 'flex-start', paddingTop: 14 }]}>
-                        <TextInput style={[s.input, { height: '100%' }]} placeholder="Add more details..." placeholderTextColor="#C7C7CC" value={description} onChangeText={setDescription} multiline textAlignVertical="top" />
+                        <TextInput style={[s.input, { height: '100%' }]} placeholder="Describe the issue briefly..." placeholderTextColor="#C7C7CC" value={description} onChangeText={setDescription} multiline textAlignVertical="top" />
                     </View>
+
+                    {/* Smart Fill Button */}
+                    <TouchableOpacity style={s.smartFillBtn} onPress={handleSmartFill} disabled={isAutofilling} activeOpacity={0.85}>
+                        {isAutofilling ? (
+                            <ActivityIndicator size="small" color="#1A1A2E" />
+                        ) : (
+                            <>
+                                <Ionicons name="sparkles-outline" size={18} color="#1A1A2E" />
+                                <Text style={s.smartFillText}>Improve with Smart Fill</Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
 
                     {/* Categories */}
                     <Text style={s.label}>Category</Text>
@@ -185,15 +185,16 @@ export default function ReportCreateScreen() {
                             <TextInput style={s.input} placeholder="Enter address" placeholderTextColor="#C7C7CC" value={address} onChangeText={setAddress} />
                         </View>
                         <TouchableOpacity style={s.locBtn} onPress={getAutoLocation} activeOpacity={0.85}>
-                            {isFetchingLocation ? <ActivityIndicator color="#4F46E5" /> : <Ionicons name="navigate" size={22} color="#4F46E5" />}
+                            {isFetchingLocation ? <ActivityIndicator color="#1A1A2E" /> : <Ionicons name="navigate" size={22} color="#1A1A2E" />}
                         </TouchableOpacity>
                     </View>
+                    <Text style={s.locHint}>Tap the arrow to auto-detect your current location</Text>
 
                 </ScrollView>
 
                 <View style={s.footer}>
                     <TouchableOpacity style={[s.submitBtn, isSubmitting && { opacity: 0.7 }]} onPress={handleSubmit} disabled={isSubmitting} activeOpacity={0.85}>
-                        {isSubmitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.submitText}>Post Report</Text>}
+                        {isSubmitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.submitText}>Submit Report</Text>}
                     </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
@@ -208,33 +209,35 @@ const s = StyleSheet.create({
     headerTitle: { fontFamily: 'Poppins-Bold', fontSize: 18, color: '#1A1A2E' },
     scroll: { paddingHorizontal: 20, paddingBottom: 20 },
 
-    photoArea: { width: '100%', borderRadius: 24, overflow: 'hidden', marginBottom: 24, backgroundColor: '#FFFFFF', shadowColor: '#1A1A2E', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
-    photoPreview: { width: '100%', height: 220, borderRadius: 24 },
+    photoArea: { width: '100%', borderRadius: 20, overflow: 'hidden', marginBottom: 24, backgroundColor: '#FFFFFF', shadowColor: '#1A1A2E', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+    photoPreview: { width: '100%', height: 220, borderRadius: 20 },
     photoRemoveBtn: { position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 14 },
     photoPlaceholder: { height: 180, justifyContent: 'center', alignItems: 'center' },
-    photoIconWrap: { width: 64, height: 64, borderRadius: 20, backgroundColor: '#EDE9FE', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+    photoIconWrap: { width: 64, height: 64, borderRadius: 20, backgroundColor: '#F0EDE8', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
     photoText: { fontFamily: 'Poppins-SemiBold', fontSize: 15, color: '#1A1A2E' },
     photoHint: { fontFamily: 'Poppins-Regular', fontSize: 13, color: '#8E8E93', marginTop: 4 },
-
-    aiBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EDE9FE', padding: 16, borderRadius: 16, marginBottom: 24 },
-    aiBannerTitle: { fontFamily: 'Poppins-Bold', fontSize: 14, color: '#4F46E5', marginBottom: 4 },
-    aiBannerDesc: { fontFamily: 'Poppins-Regular', fontSize: 12, color: '#6B6B80', lineHeight: 18 },
-    aiBtn: { backgroundColor: '#4F46E5', paddingHorizontal: 16, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-    aiBtnText: { fontFamily: 'Poppins-SemiBold', fontSize: 13, color: '#FFFFFF' },
 
     label: { fontFamily: 'Poppins-SemiBold', fontSize: 14, color: '#1A1A2E', marginBottom: 8 },
     inputWrap: { backgroundColor: '#FFFFFF', borderRadius: 14, paddingHorizontal: 14, height: 52, justifyContent: 'center', marginBottom: 18, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
     input: { fontFamily: 'Poppins-Regular', fontSize: 15, color: '#1A1A2E' },
+
+    smartFillBtn: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+        backgroundColor: '#F2CC8F', borderRadius: 12, height: 44, marginBottom: 24,
+        shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1,
+    },
+    smartFillText: { fontFamily: 'Poppins-SemiBold', fontSize: 14, color: '#1A1A2E' },
 
     catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
     catCard: { width: '30.5%', backgroundColor: '#FFFFFF', borderRadius: 16, paddingVertical: 14, alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: 'transparent', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
     catIconWrap: { width: 42, height: 42, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
     catLabel: { fontFamily: 'Poppins-SemiBold', fontSize: 12, color: '#6B6B80' },
 
-    locRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
-    locBtn: { width: 52, height: 52, borderRadius: 14, backgroundColor: '#EDE9FE', justifyContent: 'center', alignItems: 'center' },
+    locRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
+    locBtn: { width: 52, height: 52, borderRadius: 14, backgroundColor: '#F0EDE8', justifyContent: 'center', alignItems: 'center' },
+    locHint: { fontFamily: 'Poppins-Regular', fontSize: 12, color: '#8E8E93', marginBottom: 24, paddingLeft: 4 },
 
     footer: { padding: 20, backgroundColor: '#FAF8F5' },
-    submitBtn: { backgroundColor: '#4F46E5', borderRadius: 16, height: 56, justifyContent: 'center', alignItems: 'center' },
+    submitBtn: { backgroundColor: '#1A1A2E', borderRadius: 16, height: 56, justifyContent: 'center', alignItems: 'center' },
     submitText: { fontFamily: 'Poppins-SemiBold', fontSize: 16, color: '#FFFFFF' },
 });

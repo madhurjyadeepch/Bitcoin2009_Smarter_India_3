@@ -48,6 +48,10 @@ const userSchema = mongoose.Schema({
     default: true,
     select: false,
   },
+  pushToken: {
+    type: String,
+    default: null,
+  },
   trustScore: {
     type: Number,
     default: 50,

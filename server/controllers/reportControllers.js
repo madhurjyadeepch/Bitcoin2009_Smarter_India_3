@@ -1,10 +1,12 @@
 const catchAsync = require("../utils/catchAsync");
 const Report = require("../models/reportModel");
+const User = require("../models/userModel");
 const AppError = require("../utils/appError");
 const multer = require("multer");
 const path = require("path");
 const { analyzeReport, extractCity } = require("../services/aiService");
 const { recalculateTrust } = require("../services/trustService");
+const { notifyStatusChange } = require("../services/notificationService");
 
 // Multer storage config
 const storage = multer.diskStorage({
@@ -79,18 +81,27 @@ exports.changeProgress = catchAsync(async (req, res, next) => {
   const { reportId, progress } = req.body;
   if (!reportId || !progress) return next(new AppError("Provide reportId and progress", 400));
 
-  const validProgress = ["pending", "in-progress", "resolved"];
+  const validProgress = [
+    "received", "under-review", "assigned",
+    "work-in-progress", "verification", "resolved", "closed",
+  ];
   if (!validProgress.includes(progress)) return next(new AppError("Invalid progress", 400));
 
-  const report = await Report.findById(reportId);
+  const report = await Report.findById(reportId).populate("author");
   if (!report) return next(new AppError("No report found", 404));
 
   report.status = progress;
+  report.statusHistory.push({ status: progress, timestamp: new Date() });
   await report.save();
+
+  // Send push notification to report author
+  if (report.author) {
+    notifyStatusChange(report.author, report, progress).catch(() => {});
+  }
 
   // Recalculate trust when report is resolved
   if (progress === "resolved" && report.author) {
-    recalculateTrust(report.author).catch(() => {});
+    recalculateTrust(report.author._id || report.author).catch(() => {});
   }
 
   res.status(200).json({ status: "success", data: { report } });
@@ -236,12 +247,18 @@ exports.adminUpdate = catchAsync(async (req, res, next) => {
     Object.keys(aiUpdate).forEach(k => { update[`aiAnalysis.${k}`] = aiUpdate[k]; });
   }
 
-  // Recalculate trust if status changed to resolved
-  if (req.body.status === 'resolved') {
-    const report = await Report.findById(req.params.id);
-    if (report?.author) {
-      const { recalculateTrust } = require("../services/trustService");
-      recalculateTrust(report.author).catch(() => {});
+  // Handle status change: add to history and notify
+  if (req.body.status) {
+    const report = await Report.findById(req.params.id).populate("author");
+    if (report) {
+      update.$push = { statusHistory: { status: req.body.status, timestamp: new Date() } };
+      // Send push notification
+      if (report.author) {
+        notifyStatusChange(report.author, report, req.body.status).catch(() => {});
+      }
+      if (req.body.status === 'resolved' && report.author) {
+        recalculateTrust(report.author._id || report.author).catch(() => {});
+      }
     }
   }
 
