@@ -7,6 +7,7 @@ const path = require("path");
 const { analyzeReport, extractCity } = require("../services/aiService");
 const { recalculateTrust } = require("../services/trustService");
 const { notifyStatusChange } = require("../services/notificationService");
+const { analyzeImage } = require("../services/imageAnalysisService");
 
 // Multer storage config
 const storage = multer.diskStorage({
@@ -313,3 +314,23 @@ Respond ONLY in valid JSON:
     },
   });
 });
+
+// ── AI IMAGE AUTO-FILL (analyze uploaded photo to suggest title/desc/category) ──
+exports.uploadAnalysisImage = upload.single("image");
+exports.aiImageAutofill = catchAsync(async (req, res, next) => {
+  if (!req.file) return next(new AppError("Please upload an image to analyze.", 400));
+
+  const hint = req.body.hint || req.body.text || '';
+  const result = await analyzeImage(req.file.path, hint);
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      suggestedTitle: result.suggestedTitle || '',
+      suggestedDescription: result.suggestedDescription || '',
+      suggestedCategory: result.suggestedCategory || 'general',
+      confidence: result.confidence || 'medium',
+    },
+  });
+});
+

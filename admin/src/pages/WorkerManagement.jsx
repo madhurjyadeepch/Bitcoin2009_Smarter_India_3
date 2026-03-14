@@ -24,6 +24,20 @@ export default function WorkerManagement() {
         "Water & Drainage",
         "Law Enforcement & Security",
         "General Municipal Services",
+        "Public Works Department (PWD)",
+        "Urban Development & Housing",
+        "Fire & Emergency Services",
+        "Health & Family Welfare",
+        "Environment & Forest",
+        "Transport & Traffic",
+        "Revenue & Land Records",
+        "Education & Literacy",
+        "Social Welfare & Women Development",
+        "Panchayati Raj & Rural Development",
+        "Disaster Management Authority",
+        "Food & Civil Supplies",
+        "Telecommunications & IT",
+        "Municipal Corporation Administration",
     ];
 
     const fetchWorkers = async () => {

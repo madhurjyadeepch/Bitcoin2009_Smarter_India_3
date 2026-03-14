@@ -1,11 +1,20 @@
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const BASE_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
+let lastUpdateOffset = 0;
+
+/**
+ * Check if the bot token is properly configured
+ */
+const isConfigured = () => {
+  return BOT_TOKEN && BOT_TOKEN !== 'YOUR_TELEGRAM_BOT_TOKEN_HERE' && BOT_TOKEN.length > 10;
+};
+
 /**
  * Send a text message via Telegram Bot API
  */
 const sendMessage = async (chatId, text) => {
-  if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_TELEGRAM_BOT_TOKEN_HERE') {
+  if (!isConfigured()) {
     console.warn("TELEGRAM_BOT_TOKEN not configured, skipping Telegram message");
     return { ok: false, description: 'Bot token not configured' };
   }
@@ -35,7 +44,7 @@ const sendMessage = async (chatId, text) => {
  * Send a photo with caption via Telegram Bot API
  */
 const sendPhoto = async (chatId, photoUrl, caption) => {
-  if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_TELEGRAM_BOT_TOKEN_HERE') return { ok: false };
+  if (!isConfigured()) return { ok: false };
 
   try {
     const res = await fetch(`${BASE_URL}/sendPhoto`, {
@@ -56,18 +65,60 @@ const sendPhoto = async (chatId, photoUrl, caption) => {
 };
 
 /**
- * Get recent updates from the bot (to find chat IDs)
+ * Get recent updates from the bot with proper offset tracking.
+ * Uses offset to avoid seeing old messages, ensuring fresh data each time.
  */
-const getUpdates = async () => {
-  if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_TELEGRAM_BOT_TOKEN_HERE') {
+const getUpdates = async (useOffset = false) => {
+  if (!isConfigured()) {
     return { ok: false, result: [], description: 'Bot token not configured' };
   }
 
   try {
-    const res = await fetch(`${BASE_URL}/getUpdates?limit=50`);
+    const params = new URLSearchParams({ limit: '100', timeout: '5' });
+    if (useOffset && lastUpdateOffset > 0) {
+      params.set('offset', String(lastUpdateOffset));
+    }
+    const res = await fetch(`${BASE_URL}/getUpdates?${params}`);
+    const data = await res.json();
+
+    // Track the offset so next call doesn't return stale data
+    if (data.ok && data.result && data.result.length > 0) {
+      const maxId = Math.max(...data.result.map(u => u.update_id));
+      lastUpdateOffset = maxId + 1;
+    }
+
+    return data;
+  } catch (err) {
+    return { ok: false, result: [], description: err.message };
+  }
+};
+
+/**
+ * Get ALL updates without offset (to show all historical chat IDs)
+ */
+const getAllUpdates = async () => {
+  if (!isConfigured()) {
+    return { ok: false, result: [], description: 'Bot token not configured' };
+  }
+
+  try {
+    const res = await fetch(`${BASE_URL}/getUpdates?limit=100&timeout=5`);
     return await res.json();
   } catch (err) {
     return { ok: false, result: [], description: err.message };
+  }
+};
+
+/**
+ * Get bot info to verify the token works
+ */
+const getBotInfo = async () => {
+  if (!isConfigured()) return { ok: false, description: 'Bot token not configured' };
+  try {
+    const res = await fetch(`${BASE_URL}/getMe`);
+    return await res.json();
+  } catch (err) {
+    return { ok: false, description: err.message };
   }
 };
 
@@ -82,19 +133,18 @@ const sendAssignmentNotification = async (worker, report) => {
   const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(report.address || '')}`;
 
   const message =
-    `*CIVIC ISSUE ASSIGNED*\n\n` +
-    `*Title:* ${report.title}\n` +
-    `*Category:* ${report.category}\n` +
-    `*Urgency:* ${report.aiAnalysis?.urgency || 'N/A'}\n` +
-    `*Priority:* ${report.aiAnalysis?.priorityScore || 'N/A'}/100\n` +
-    `*Location:* ${report.address}\n` +
-    `*Maps:* ${mapsLink}\n\n` +
-    `*Description:* ${report.description}\n` +
-    `*Reported By:* ${report.author?.name || 'Anonymous'}`;
+    `🚨 *CIVIC ISSUE ASSIGNED*\n\n` +
+    `📋 *Title:* ${report.title}\n` +
+    `🏷 *Category:* ${report.category}\n` +
+    `⚡ *Urgency:* ${report.aiAnalysis?.urgency || 'N/A'}\n` +
+    `📊 *Priority:* ${report.aiAnalysis?.priorityScore || 'N/A'}/100\n` +
+    `📍 *Location:* ${report.address}\n` +
+    `🗺 *Maps:* ${mapsLink}\n\n` +
+    `📝 *Description:* ${report.description}\n` +
+    `👤 *Reported By:* ${report.author?.name || 'Anonymous'}`;
 
-  // Try sending as text first (more reliable than photo URL from localhost)
   const result = await sendMessage(worker.telegramChatId, message);
   return result;
 };
 
-module.exports = { sendMessage, sendPhoto, sendAssignmentNotification, getUpdates };
+module.exports = { sendMessage, sendPhoto, sendAssignmentNotification, getUpdates, getAllUpdates, getBotInfo, isConfigured };

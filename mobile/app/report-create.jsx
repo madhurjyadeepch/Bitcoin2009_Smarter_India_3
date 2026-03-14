@@ -1,7 +1,8 @@
 import {
-    View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput,
-    Image, Alert, ActivityIndicator, Platform, KeyboardAvoidingView, SafeAreaView, StatusBar, ActionSheetIOS
+    View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView,
+    Image, Alert, ActivityIndicator, Platform, KeyboardAvoidingView, StatusBar, ActionSheetIOS
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect, useCallback } from "react";
@@ -29,6 +30,7 @@ export default function ReportCreateScreen() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isFetchingLocation, setIsFetchingLocation] = useState(false);
     const [isAutofilling, setIsAutofilling] = useState(false);
+    const [smartFillDone, setSmartFillDone] = useState(false);
 
     useEffect(() => { if (preCategory) setCategory(preCategory); }, [preCategory]);
 
@@ -66,19 +68,44 @@ export default function ReportCreateScreen() {
     const pickImage = async (useCamera) => {
         const fn = useCamera ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
         const result = await fn({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.8 });
-        if (!result.canceled) setImage(result.assets[0].uri);
+        if (!result.canceled) {
+            setImage(result.assets[0].uri);
+            setSmartFillDone(false); // Reset smart fill when new image is picked
+        }
     };
 
     const handleSmartFill = async () => {
-        if (!description && !image) {
+        if (!image && !description) {
             Alert.alert("Smart Fill", "Please add a photo or write a brief description first.");
             return;
         }
         setIsAutofilling(true);
         try {
-            const textHint = description || `A civic issue at ${address || 'an unknown location'}`;
-            const res = await api.post('/reports/ai-autofill', { text: textHint, address });
-            const { suggestedTitle, suggestedDescription, suggestedCategory } = res.data.data;
+            let data;
+
+            if (image) {
+                // Use image analysis endpoint (Groq Vision)
+                const formData = new FormData();
+                const filename = image.split('/').pop();
+                formData.append("image", {
+                    uri: image,
+                    name: filename,
+                    type: `image/${filename.split('.').pop() || 'jpeg'}`,
+                });
+                if (description) formData.append("hint", description);
+
+                const res = await api.post('/reports/ai-image-autofill', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                });
+                data = res.data.data;
+            } else {
+                // Fallback to text-only analysis
+                const textHint = description || `A civic issue at ${address || 'an unknown location'}`;
+                const res = await api.post('/reports/ai-autofill', { text: textHint, address });
+                data = res.data.data;
+            }
+
+            const { suggestedTitle, suggestedDescription, suggestedCategory } = data;
 
             if (suggestedTitle) setTitle(suggestedTitle);
             if (suggestedDescription) setDescription(suggestedDescription);
@@ -86,8 +113,10 @@ export default function ReportCreateScreen() {
                 const match = CATEGORIES.find(c => c.label.toLowerCase() === suggestedCategory.toLowerCase());
                 setCategory(match ? match.label : "General");
             }
-        } catch {
-            Alert.alert("Error", "Could not generate details. Try again.");
+            setSmartFillDone(true);
+        } catch (err) {
+            console.log('Smart Fill error:', err);
+            Alert.alert("Error", "Could not analyze the image. Try adding a text description and retry.");
         } finally {
             setIsAutofilling(false);
         }
@@ -123,6 +152,10 @@ export default function ReportCreateScreen() {
                 <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
 
                     {/* Photo Section */}
+                    <View style={s.sectionHeader}>
+                        <Ionicons name="camera-outline" size={18} color="#6B6B80" />
+                        <Text style={s.sectionTitle}>Photo Evidence</Text>
+                    </View>
                     <TouchableOpacity style={s.photoArea} onPress={showImagePicker} activeOpacity={0.9}>
                         {image ? (
                             <View>
@@ -142,31 +175,68 @@ export default function ReportCreateScreen() {
                         )}
                     </TouchableOpacity>
 
+                    {/* Smart Fill Button - Prominent when image is added */}
+                    {image && (
+                        <TouchableOpacity
+                            style={[s.smartFillBtn, smartFillDone && s.smartFillDone]}
+                            onPress={handleSmartFill}
+                            disabled={isAutofilling}
+                            activeOpacity={0.85}
+                        >
+                            {isAutofilling ? (
+                                <>
+                                    <ActivityIndicator size="small" color="#1A1A2E" />
+                                    <Text style={s.smartFillText}>Analyzing photo with AI...</Text>
+                                </>
+                            ) : smartFillDone ? (
+                                <>
+                                    <Ionicons name="checkmark-circle" size={18} color="#2E7D32" />
+                                    <Text style={[s.smartFillText, { color: '#2E7D32' }]}>AI Filled! Tap to re-analyze</Text>
+                                </>
+                            ) : (
+                                <>
+                                    <Ionicons name="sparkles" size={18} color="#1A1A2E" />
+                                    <Text style={s.smartFillText}>🔍 Analyze Photo with AI</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    )}
+
                     {/* Fields */}
+                    <View style={s.sectionHeader}>
+                        <Ionicons name="document-text-outline" size={18} color="#6B6B80" />
+                        <Text style={s.sectionTitle}>Issue Details</Text>
+                    </View>
+
                     <Text style={s.label}>Title</Text>
                     <View style={s.inputWrap}>
                         <TextInput style={s.input} placeholder="What's the issue?" placeholderTextColor="#C7C7CC" value={title} onChangeText={setTitle} />
                     </View>
 
                     <Text style={s.label}>Description</Text>
-                    <View style={[s.inputWrap, { height: 100, alignItems: 'flex-start', paddingTop: 14 }]}>
+                    <View style={[s.inputWrap, { height: 110, alignItems: 'flex-start', paddingTop: 14 }]}>
                         <TextInput style={[s.input, { height: '100%' }]} placeholder="Describe the issue briefly..." placeholderTextColor="#C7C7CC" value={description} onChangeText={setDescription} multiline textAlignVertical="top" />
                     </View>
 
-                    {/* Smart Fill Button */}
-                    <TouchableOpacity style={s.smartFillBtn} onPress={handleSmartFill} disabled={isAutofilling} activeOpacity={0.85}>
-                        {isAutofilling ? (
-                            <ActivityIndicator size="small" color="#1A1A2E" />
-                        ) : (
-                            <>
-                                <Ionicons name="sparkles-outline" size={18} color="#1A1A2E" />
-                                <Text style={s.smartFillText}>Improve with Smart Fill</Text>
-                            </>
-                        )}
-                    </TouchableOpacity>
+                    {/* Text-only Smart Fill (when no image) */}
+                    {!image && (
+                        <TouchableOpacity style={s.smartFillBtnSecondary} onPress={handleSmartFill} disabled={isAutofilling} activeOpacity={0.85}>
+                            {isAutofilling ? (
+                                <ActivityIndicator size="small" color="#1A1A2E" />
+                            ) : (
+                                <>
+                                    <Ionicons name="sparkles-outline" size={18} color="#1A1A2E" />
+                                    <Text style={s.smartFillText}>Improve with Smart Fill</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    )}
 
                     {/* Categories */}
-                    <Text style={s.label}>Category</Text>
+                    <View style={s.sectionHeader}>
+                        <Ionicons name="grid-outline" size={18} color="#6B6B80" />
+                        <Text style={s.sectionTitle}>Category</Text>
+                    </View>
                     <View style={s.catGrid}>
                         {CATEGORIES.map((cat, i) => (
                             <TouchableOpacity key={i} style={[s.catCard, category === cat.label && { borderWidth: 2.5, borderColor: cat.fg }]} onPress={() => setCategory(cat.label)} activeOpacity={0.85}>
@@ -179,7 +249,10 @@ export default function ReportCreateScreen() {
                     </View>
 
                     {/* Location */}
-                    <Text style={s.label}>Location</Text>
+                    <View style={s.sectionHeader}>
+                        <Ionicons name="location-outline" size={18} color="#6B6B80" />
+                        <Text style={s.sectionTitle}>Location</Text>
+                    </View>
                     <View style={s.locRow}>
                         <View style={[s.inputWrap, { flex: 1, marginBottom: 0 }]}>
                             <TextInput style={s.input} placeholder="Enter address" placeholderTextColor="#C7C7CC" value={address} onChangeText={setAddress} />
@@ -204,38 +277,49 @@ export default function ReportCreateScreen() {
 
 const s = StyleSheet.create({
     safe: { flex: 1, backgroundColor: '#FAF8F5' },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12 },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
     closeBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
     headerTitle: { fontFamily: 'Poppins-Bold', fontSize: 18, color: '#1A1A2E' },
-    scroll: { paddingHorizontal: 20, paddingBottom: 20 },
+    scroll: { paddingHorizontal: 20, paddingBottom: 24, paddingTop: 8 },
 
-    photoArea: { width: '100%', borderRadius: 20, overflow: 'hidden', marginBottom: 24, backgroundColor: '#FFFFFF', shadowColor: '#1A1A2E', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
-    photoPreview: { width: '100%', height: 220, borderRadius: 20 },
+    sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12, marginTop: 4 },
+    sectionTitle: { fontFamily: 'Poppins-SemiBold', fontSize: 15, color: '#6B6B80' },
+
+    photoArea: { width: '100%', borderRadius: 20, overflow: 'hidden', marginBottom: 16, backgroundColor: '#FFFFFF', shadowColor: '#1A1A2E', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+    photoPreview: { width: '100%', height: 240, borderRadius: 20 },
     photoRemoveBtn: { position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 14 },
-    photoPlaceholder: { height: 180, justifyContent: 'center', alignItems: 'center' },
+    photoPlaceholder: { height: 200, justifyContent: 'center', alignItems: 'center' },
     photoIconWrap: { width: 64, height: 64, borderRadius: 20, backgroundColor: '#F0EDE8', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
     photoText: { fontFamily: 'Poppins-SemiBold', fontSize: 15, color: '#1A1A2E' },
     photoHint: { fontFamily: 'Poppins-Regular', fontSize: 13, color: '#8E8E93', marginTop: 4 },
 
     label: { fontFamily: 'Poppins-SemiBold', fontSize: 14, color: '#1A1A2E', marginBottom: 8 },
-    inputWrap: { backgroundColor: '#FFFFFF', borderRadius: 14, paddingHorizontal: 14, height: 52, justifyContent: 'center', marginBottom: 18, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
+    inputWrap: { backgroundColor: '#FFFFFF', borderRadius: 14, paddingHorizontal: 14, height: 52, justifyContent: 'center', marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
     input: { fontFamily: 'Poppins-Regular', fontSize: 15, color: '#1A1A2E' },
 
     smartFillBtn: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+        backgroundColor: '#F2CC8F', borderRadius: 14, height: 50, marginBottom: 20,
+        shadowColor: '#F2CC8F', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2,
+    },
+    smartFillDone: {
+        backgroundColor: '#E8F5E9', shadowColor: '#A8D5BA',
+    },
+    smartFillBtnSecondary: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-        backgroundColor: '#F2CC8F', borderRadius: 12, height: 44, marginBottom: 24,
+        backgroundColor: '#F0EDE8', borderRadius: 12, height: 44, marginBottom: 20,
         shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1,
     },
     smartFillText: { fontFamily: 'Poppins-SemiBold', fontSize: 14, color: '#1A1A2E' },
 
-    catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
+    catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
     catCard: { width: '30.5%', backgroundColor: '#FFFFFF', borderRadius: 16, paddingVertical: 14, alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: 'transparent', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
     catIconWrap: { width: 42, height: 42, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
     catLabel: { fontFamily: 'Poppins-SemiBold', fontSize: 12, color: '#6B6B80' },
 
     locRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
     locBtn: { width: 52, height: 52, borderRadius: 14, backgroundColor: '#F0EDE8', justifyContent: 'center', alignItems: 'center' },
-    locHint: { fontFamily: 'Poppins-Regular', fontSize: 12, color: '#8E8E93', marginBottom: 24, paddingLeft: 4 },
+    locHint: { fontFamily: 'Poppins-Regular', fontSize: 12, color: '#8E8E93', marginBottom: 20, paddingLeft: 4 },
 
     footer: { padding: 20, backgroundColor: '#FAF8F5' },
     submitBtn: { backgroundColor: '#1A1A2E', borderRadius: 16, height: 56, justifyContent: 'center', alignItems: 'center' },

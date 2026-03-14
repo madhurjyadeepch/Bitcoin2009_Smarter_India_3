@@ -29,7 +29,6 @@ export const AuthProvider = ({ children }) => {
     const login = async (userData, token) => {
         try {
             setUser(userData);
-            // If token is provided, update it. Otherwise keep existing.
             if (token) {
                 await SecureStore.setItemAsync('authToken', token);
             }

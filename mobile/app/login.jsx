@@ -1,7 +1,8 @@
 import {
     View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator,
-    KeyboardAvoidingView, Platform, SafeAreaView, StatusBar
+    KeyboardAvoidingView, Platform, StatusBar
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";

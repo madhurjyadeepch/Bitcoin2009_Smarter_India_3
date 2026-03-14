@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import './index.css';
 import SignInPage from './pages/SignInPage';
+import SignUpPage from './pages/SignUpPage';
 import Dashboard from './pages/Dashboard';
 import ReportDetail from './pages/ReportDetail';
 import WorkerManagement from './pages/WorkerManagement';
@@ -24,6 +25,7 @@ function App() {
         <Route path='report/:id' element={isSignedIn ? <ReportDetail /> : <Navigate to="/signin" replace />} />
         <Route path='workers' element={isSignedIn ? <WorkerManagement /> : <Navigate to="/signin" replace />} />
         <Route path='signin' element={isSignedIn ? <Navigate to="/" replace /> : <SignInPage setIsSignedIn={setIsSignedIn} />} />
+        <Route path='signup' element={isSignedIn ? <Navigate to="/" replace /> : <SignUpPage setIsSignedIn={setIsSignedIn} />} />
         <Route path='*' element={<Navigate to="/" replace />} />
       </Route>
     )

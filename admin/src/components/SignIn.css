@@ -81,3 +81,26 @@
     .signin-left { padding: 32px; }
     .signin-right { padding: 32px; }
 }
+
+.signin-switch-link {
+    text-align: center; font-size: 14px; color: var(--text-mid);
+    margin-top: 20px;
+}
+.signin-switch-link a {
+    color: var(--primary); font-weight: 600; text-decoration: none;
+}
+.signin-switch-link a:hover { text-decoration: underline; }
+
+.signup-form .password-row {
+    display: flex; gap: 12px; margin-top: 8px;
+}
+.signup-form .password-field {
+    flex: 1;
+}
+.signup-form .password-field label {
+    margin-top: 0;
+}
+
+.signin-right {
+    overflow-y: auto;
+}

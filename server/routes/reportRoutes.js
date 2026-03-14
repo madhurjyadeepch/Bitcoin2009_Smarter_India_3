@@ -16,6 +16,7 @@ router.get("/my-reports", authController.protect, reportController.myReports);
 router.get("/user-stats", authController.protect, reportController.getUserStats);
 router.post("/create", authController.protect, reportController.uploadReportFile, reportController.createReport);
 router.post("/ai-autofill", authController.protect, reportController.aiAutofill);
+router.post("/ai-image-autofill", authController.protect, reportController.uploadAnalysisImage, reportController.aiImageAutofill);
 
 // This must be AFTER all named routes to avoid catching /my-reports, /cities, etc.
 router.get("/:id", reportController.getReportById);

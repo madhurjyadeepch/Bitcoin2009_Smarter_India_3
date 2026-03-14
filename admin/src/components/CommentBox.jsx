@@ -1,271 +1,144 @@
-import React from 'react'
-import './CommentBox.css'
+import React, { useState, useEffect } from 'react';
+import api from '../utils/api';
+import './CommentBox.css';
+
+const STATUS_COLORS = {
+    'received': { bg: '#EDE9FE', color: '#4F46E5' },
+    'under-review': { bg: '#FFF8E5', color: '#E6A817' },
+    'assigned': { bg: '#E0F2FE', color: '#0284C7' },
+    'work-in-progress': { bg: '#FFF3E0', color: '#E65100' },
+    'verification': { bg: '#F3E8FF', color: '#7C3AED' },
+    'resolved': { bg: '#E8F5E9', color: '#2E7D32' },
+    'closed': { bg: '#F5F5F5', color: '#757575' },
+    'pending': { bg: '#EDE9FE', color: '#4F46E5' },
+};
+
+const STATUS_LABELS = {
+    'received': 'Received', 'under-review': 'Under Review',
+    'assigned': 'Assigned', 'work-in-progress': 'In Progress',
+    'verification': 'Verification', 'resolved': 'Resolved',
+    'closed': 'Closed', 'pending': 'Pending',
+};
+
+const SERVER_ROOT = 'http://127.0.0.1:3000';
 
 const CommentBox = () => {
-    const [reports, setReports] = React.useState([
-        {
-          name: "Amit Sharma",
-          post_time: "2 hours ago",
-          report_title: "Flooding near Kahilipara",
-          status: "resolved",
-          upvotes: 120,
-          downvotes: 15,
-          comments: [
-            { id: 1, comment: "This needs urgent attention!" },
-            { id: 2, comment: "Roads are completely blocked." }
-          ],
-          image: "https://www.aljazeera.com/wp-content/uploads/2024/08/AFP__20240823__36EM9XC__v1__HighRes__BangladeshWeatherFlood-1724392248.jpg"
-        },
-        {
-          name: "Priya Das",
-          post_time: "5 mins ago",
-          report_title: "Streetlight not working at Chandmari",
-          status: "inprogress",
-          upvotes: 34,
-          downvotes: 4,
-          comments: [
-            { id: 1, comment: "Very unsafe at night." },
-            { id: 2, comment: "Please fix quickly." }
-          ],
-          image: "https://media.istockphoto.com/id/598171880/photo/broken-lamp.jpg?s=612x612&w=0&k=20&c=4LjHvpVxg0VUttmbWQtYBF5cS7R_9GVyTuKcXcEJCjw="
-        },
-        {
-          name: "Rohit Sen",
-          post_time: "1 hour ago",
-          report_title: "Garbage dump overflowing in Beltola",
-          status: "acknowledged",
-          upvotes: 89,
-          downvotes: 20,
-          comments: [
-            { id: 1, comment: "Smell is unbearable." },
-            { id: 2, comment: "Health hazard for kids." }
-          ],
-          image: "https://media.istockphoto.com/id/639450178/video/landfill-with-garbage-trucks-unloading-junk.jpg?s=640x640&k=20&c=WTTDWSY340YVNKUhXrvIuUk9sMCTVQS9Z9ADHXqlQjY="
-        },
-        {
-          name: "Sneha Roy",
-          post_time: "30 mins ago",
-          report_title: "Broken footpath near Ganeshguri flyover",
-          status: "submitted",
-          upvotes: 42,
-          downvotes: 3,
-          comments: [
-            { id: 1, comment: "Almost tripped today." }
-          ],
-          image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS5-FVTaV0BMozhjGqEHMEP4sFLLD6i3kuwTQ&s"
-        },
-        {
-          name: "Arjun Gupta",
-          post_time: "10 hours ago",
-          report_title: "Potholes causing traffic near Dispur",
-          status: "inprogress",
-          upvotes: 76,
-          downvotes: 12,
-          comments: [
-            { id: 1, comment: "Accidents waiting to happen." },
-            { id: 2, comment: "Traffic jam daily." }
-          ],
-          image: "https://www.hindustantimes.com/ht-img/img/2023/09/20/1600x900/gege_akutami_1695225795670_1695225816461.jpg"
-        },
-        {
-          name: "Meera Joshi",
-          post_time: "25 mins ago",
-          report_title: "Drainage clogged in Ulubari area",
-          status: "acknowledged",
-          upvotes: 53,
-          downvotes: 9,
-          comments: [
-            { id: 1, comment: "Mosquitoes breeding here." }
-          ],
-          image: "https://www.hindustantimes.com/ht-img/img/2023/09/20/1600x900/gege_akutami_1695225795670_1695225816461.jpg"
-        },
-        {
-          name: "Rakesh Verma",
-          post_time: "3 hours ago",
-          report_title: "Illegal parking blocking road at Fancy Bazaar",
-          status: "submitted",
-          upvotes: 61,
-          downvotes: 22,
-          comments: [
-            { id: 1, comment: "Ambulance got stuck here." },
-            { id: 2, comment: "Police should act." }
-          ],
-          image: "https://www.hindustantimes.com/ht-img/img/2023/09/20/1600x900/gege_akutami_1695225795670_1695225816461.jpg"
-        },
-        {
-          name: "Kavita Singh",
-          post_time: "15 mins ago",
-          report_title: "Water leakage near Zoo Road",
-          status: "inprogress",
-          upvotes: 47,
-          downvotes: 5,
-          comments: [
-            { id: 1, comment: "So much water being wasted!" }
-          ],
-          image: "https://www.hindustantimes.com/ht-img/img/2023/09/20/1600x900/gege_akutami_1695225795670_1695225816461.jpg"
-        },
-        {
-          name: "Saurav Boro",
-          post_time: "8 hours ago",
-          report_title: "Damaged electric pole near Paltan Bazaar",
-          status: "acknowledged",
-          upvotes: 84,
-          downvotes: 17,
-          comments: [
-            { id: 1, comment: "This is dangerous during rains." }
-          ],
-          image: "https://www.hindustantimes.com/ht-img/img/2023/09/20/1600x900/gege_akutami_1695225795670_1695225816461.jpg"
-        },
-        {
-          name: "Nisha Ali",
-          post_time: "50 mins ago",
-          report_title: "Garbage collection delayed in Maligaon",
-          status: "resolved",
-          upvotes: 29,
-          downvotes: 2,
-          comments: [
-            { id: 1, comment: "Collection resumed today." }
-          ],
-          image: "https://www.hindustantimes.com/ht-img/img/2023/09/20/1600x900/gege_akutami_1695225795670_1695225816461.jpg"
-        },
-        {
-          name: "Aditya Kumar",
-          post_time: "6 hours ago",
-          report_title: "Open manhole near Silpukhuri",
-          status: "submitted",
-          upvotes: 65,
-          downvotes: 14,
-          comments: [
-            { id: 1, comment: "Kids could fall inside." }
-          ],
-          image: "https://www.hindustantimes.com/ht-img/img/2023/09/20/1600x900/gege_akutami_1695225795670_1695225816461.jpg"
-        },
-        {
-          name: "Rituparna Goswami",
-          post_time: "20 mins ago",
-          report_title: "Street flooded after rain in Pan Bazaar",
-          status: "submitted",
-          upvotes: 58,
-          downvotes: 11,
-          comments: [
-            { id: 1, comment: "Cars got stuck here today." }
-          ],
-          image: "https://www.hindustantimes.com/ht-img/img/2023/09/20/1600x900/gege_akutami_1695225795670_1695225816461.jpg"
-        },
-        {
-          name: "Sanjay Patel",
-          post_time: "2 days ago",
-          report_title: "Broken traffic signal at Jalukbari",
-          status: "acknowledged",
-          upvotes: 33,
-          downvotes: 6,
-          comments: [
-            { id: 1, comment: "Traffic police handling manually." }
-          ],
-          image: "https://www.hindustantimes.com/ht-img/img/2023/09/20/1600x900/gege_akutami_1695225795670_1695225816461.jpg"
-        },
-        {
-          name: "Deepika Choudhury",
-          post_time: "12 hours ago",
-          report_title: "Garbage burning causing pollution in Basistha",
-          status: "submitted",
-          upvotes: 72,
-          downvotes: 18,
-          comments: [
-            { id: 1, comment: "Smoke everywhere!" },
-            { id: 2, comment: "Asthma patients suffering." }
-          ],
-          image: "https://www.hindustantimes.com/ht-img/img/2023/09/20/1600x900/gege_akutami_1695225795670_1695225816461.jpg"
-        },
-        {
-          name: "Ankit Mehta",
-          post_time: "3 days ago",
-          report_title: "Encroachment on footpath near Khanapara",
-          status: "resolved",
-          upvotes: 40,
-          downvotes: 5,
-          comments: [
-            { id: 1, comment: "Footpath cleared today." }
-          ],
-          image: "https://www.hindustantimes.com/ht-img/img/2023/09/20/1600x900/gege_akutami_1695225795670_1695225816461.jpg"
-        },
-        {
-          name: "Manisha Deka",
-          post_time: "40 mins ago",
-          report_title: "Water supply disruption in Noonmati",
-          status: "inprogress",
-          upvotes: 52,
-          downvotes: 10,
-          comments: [
-            { id: 1, comment: "Haven’t had water since morning." }
-          ],
-          image: "https://www.hindustantimes.com/ht-img/img/2023/09/20/1600x900/gege_akutami_1695225795670_1695225816461.jpg"
-        },
-        {
-          name: "Rajiv Das",
-          post_time: "7 hours ago",
-          report_title: "Stray cattle blocking road near Narengi",
-          status: "submitted",
-          upvotes: 45,
-          downvotes: 8,
-          comments: [
-            { id: 1, comment: "Traffic jam due to cows." }
-          ],
-          image: "https://www.hindustantimes.com/ht-img/img/2023/09/20/1600x900/gege_akutami_1695225795670_1695225816461.jpg"
-        },
-        {
-          name: "Pooja Sen",
-          post_time: "1 min ago",
-          report_title: "Garbage scattered near GS Road",
-          status: "submitted",
-          upvotes: 36,
-          downvotes: 7,
-          comments: [
-            { id: 1, comment: "Roadside vendors dumping trash." }
-          ],
-          image: "https://www.hindustantimes.com/ht-img/img/2023/09/20/1600x900/gege_akutami_1695225795670_1695225816461.jpg"
-        },
-        {
-          name: "Vikram Thakur",
-          post_time: "9 hours ago",
-          report_title: "Noise pollution due to loudspeakers at Bharalumukh",
-          status: "acknowledged",
-          upvotes: 49,
-          downvotes: 21,
-          comments: [
-            { id: 1, comment: "Can’t sleep at night." }
-          ],
-          image: "https://www.hindustantimes.com/ht-img/img/2023/09/20/1600x900/gege_akutami_1695225795670_1695225816461.jpg"
-        },
-        {
-          name: "Shweta Paul",
-          post_time: "4 hours ago",
-          report_title: "Uncovered drains near Lokhra",
-          status: "inprogress",
-          upvotes: 62,
-          downvotes: 16,
-          comments: [
-            { id: 1, comment: "Kids almost fell here." }
-          ],
-          image: "https://www.hindustantimes.com/ht-img/img/2023/09/20/1600x900/gege_akutami_1695225795670_1695225816461.jpg"
-        }
-      ])
-  return (
-    <div className='commentbox-container'>
-        <h1 id='comments'>Comments</h1>
-        
-        <div className='comment'>
-            <div className='user-info-container-commentBox'>
-                <div className='user-info'>
-                    <img class='user-profile-picture'src='https://static.vecteezy.com/system/resources/thumbnails/020/765/399/small/default-profile-account-unknown-icon-black-silhouette-free-vector.jpg'/>
-                    <p class='username'>{reports.name}</p>
-                    <p class='post-time'>{reports.post_time}</p>
-                </div>
-            </div>    
-            <h3 className='comment'>This shit is garbage</h3>
-        </div>      
-    </div>
-  )
-}
+    const [reports, setReports] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [filter, setFilter] = useState('all');
 
-export default CommentBox
+    useEffect(() => {
+        fetchReports();
+    }, []);
+
+    const fetchReports = async () => {
+        try {
+            setLoading(true);
+            const r = await api.get('/reports');
+            setReports(r.data.data.reports || []);
+        } catch (err) {
+            console.error('Error fetching reports:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const filteredReports = filter === 'all'
+        ? reports
+        : reports.filter(r => r.status === filter);
+
+    const timeAgo = (date) => {
+        const now = new Date();
+        const d = new Date(date);
+        const diffMs = now - d;
+        const diffMins = Math.floor(diffMs / 60000);
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        const diffHrs = Math.floor(diffMins / 60);
+        if (diffHrs < 24) return `${diffHrs}h ago`;
+        const diffDays = Math.floor(diffHrs / 24);
+        if (diffDays < 7) return `${diffDays}d ago`;
+        return d.toLocaleDateString();
+    };
+
+    return (
+        <div className="cb-container">
+            <div className="cb-header">
+                <h2 className="cb-title">📋 Recent Reports</h2>
+                <span className="cb-count">{filteredReports.length} reports</span>
+            </div>
+
+            <div className="cb-filters">
+                {['all', 'received', 'assigned', 'work-in-progress', 'resolved'].map(f => (
+                    <button
+                        key={f}
+                        className={`cb-filter-btn ${filter === f ? 'active' : ''}`}
+                        onClick={() => setFilter(f)}
+                    >
+                        {f === 'all' ? 'All' : STATUS_LABELS[f] || f}
+                    </button>
+                ))}
+            </div>
+
+            {loading ? (
+                <div className="cb-loading">
+                    <div className="spinner"></div>
+                    <p>Loading reports...</p>
+                </div>
+            ) : filteredReports.length === 0 ? (
+                <div className="cb-empty">
+                    <p>No reports found for this filter.</p>
+                </div>
+            ) : (
+                <div className="cb-feed">
+                    {filteredReports.map(report => {
+                        const statusStyle = STATUS_COLORS[report.status] || STATUS_COLORS['pending'];
+                        return (
+                            <div key={report._id} className="cb-card">
+                                <div className="cb-card-header">
+                                    <div className="cb-avatar">
+                                        {report.author?.name?.charAt(0) || '?'}
+                                    </div>
+                                    <div className="cb-author-info">
+                                        <span className="cb-author-name">{report.author?.name || 'Anonymous'}</span>
+                                        <span className="cb-time">{timeAgo(report.createdAt)}</span>
+                                    </div>
+                                    <span className="cb-status-pill" style={{ background: statusStyle.bg, color: statusStyle.color }}>
+                                        {STATUS_LABELS[report.status] || report.status}
+                                    </span>
+                                </div>
+
+                                <h3 className="cb-report-title">{report.title}</h3>
+                                <p className="cb-report-desc">{report.description}</p>
+
+                                {report.image && (
+                                    <img src={`${SERVER_ROOT}/${report.image}`} alt={report.title} className="cb-report-image" />
+                                )}
+
+                                <div className="cb-card-footer">
+                                    <div className="cb-meta">
+                                        <span className="cb-category-tag">{report.category}</span>
+                                        {report.city && <span className="cb-city">📍 {report.city}</span>}
+                                    </div>
+                                    <div className="cb-votes">
+                                        <span className="cb-upvote">▲ {report.upvotedBy?.length || 0}</span>
+                                        <span className="cb-downvote">▼ {report.downvotedBy?.length || 0}</span>
+                                    </div>
+                                </div>
+
+                                {report.aiAnalysis?.aiSummary && (
+                                    <div className="cb-ai-summary">
+                                        <span className="cb-ai-label">🤖 AI Summary</span>
+                                        <p>{report.aiAnalysis.aiSummary}</p>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default CommentBox;
